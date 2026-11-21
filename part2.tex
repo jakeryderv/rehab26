@@ -1,0 +1,97 @@
+\input{tex/preamble}
+
+\title{Capstone Part 2: Progress Summary and Preliminary Results}
+\duedate{November 12, 2026}
+
+\begin{document}
+\maketitle
+
+The task is to classify one rehabilitation exercise repetition, seen from one camera as a sequence of 33
+body joints, as correct or incorrect. So far I have a working data pipeline, an MLP baseline, a first 1D
+CNN, and two sets of experiments. Models are validated on participants they have never seen: one of the
+five participants is held out as a final test set, and the other four take turns as the validation
+participant.
+
+\begin{longtable}{L{0.17\linewidth} L{0.22\linewidth} L{0.12\linewidth} L{0.38\linewidth}}
+\caption{Preliminary Results: Mean Validation Accuracy Over Four Held-Out Participants and Three Seeds, ± the Spread Across Participants}\\
+\toprule
+Model / Experiment & Main change & Validation accuracy & Observation \\
+\midrule
+\endfirsthead
+\toprule
+Model / Experiment & Main change & Validation accuracy & Observation \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Baseline & MLP on summary statistics of raw 3D coordinates & 0.715 ± 0.067 & Well above chance (0.50) and above what repetition length alone gives (0.536), so the model is learning from the movement. The same model reaches 0.865 on participants it has seen, so most of the remaining error is failure to transfer to a new person. \\
+Exp 1a: features & Coordinates scaled by torso length & 0.706 ± 0.064 & No real change. Differences in body size are not what limits the baseline. \\
+Exp 1b: features & Scaled and rotated to a common facing direction & 0.717 ± 0.052 & No real change, even though alignment removes almost all of the orientation spread (43° to 5°). Facing direction is not the bottleneck for this model. \\
+Exp 1c: features & Biomechanical features (angles, tilts, ratios, velocities) & 0.718 ± 0.058 & Same overall accuracy with fewer than half the inputs. It changes which errors are caught (bent arm 0.50 to 0.73, torso to side 0.88 to 0.79) without improving the total, so the hypothesis that angles generalize better is not supported yet. \\
+Exp 2a: model & 1D CNN on raw coordinates (vs Baseline) & 0.739 ± 0.075 & About 2 points better, and better for all four held-out participants. Using the full sequence helps a little, consistently. \\
+Exp 2b: model & 1D CNN on scaled coordinates (vs 1a) & 0.736 ± 0.083 & About 3 points better on average, but worse for one of the four participants. \\
+Exp 2c: model & 1D CNN on aligned coordinates (vs 1b) & 0.708 ± 0.062 & No gain; the only feature set where the CNN does not help. It raises more false alarms than any other condition. I can't explain this yet. \\
+Exp 2d: model & 1D CNN on biomechanical features (vs 1c) & 0.739 ± 0.066 & About 2 points better for all four participants, but with the largest gap between training and validation loss (0.05 vs 1.49). This is the most overfit model. \\
+\end{longtable}
+
+Experiment 1 changes only the features (model fixed to the MLP). Experiment 2 changes only the model (each
+CNN row is compared with the MLP row that uses the same features). Seed-to-seed variation is about 0.01, and
+repeated runs of the CNN differ by about the same amount.
+
+\section{What is working}
+
+\begin{itemize}
+\item \lead{The data pipeline.} Repetitions are sliced, resampled to a fixed length, converted into four feature
+  sets, split by participant, standardized on training data only, and batched. One participant is held out
+  as a test set and has not been touched.
+\item \lead{Both models train.} The MLP baseline and a first 1D CNN run on every feature set, and all eight
+  conditions beat chance and the duration-only check by a wide margin.
+\item \lead{The experiments isolate one factor each}, and the per-exercise, per-view and per-error breakdowns come
+  from the same validation predictions.
+\end{itemize}
+
+\section{What the results say so far}
+
+\begin{itemize}
+\item \lead{Generalizing to a new person is the main problem.} Accuracy is 0.71 to 0.74 on an unseen participant
+  but 0.86 to 0.91 when the participant was seen during training. That 14 to 20 point gap is far larger
+  than any difference between feature sets or models.
+\item \lead{The mistakes are mostly false alarms.} The models catch 80 to 84\% of incorrect repetitions but pass
+  only 58 to 64\% of correct ones. A new person's normal way of moving is often read as an error. Arm
+  abduction is the hardest exercise (0.60 to 0.67), where barely half of correct repetitions pass.
+\item \lead{Feature representation made no measurable difference.} The four feature sets are within about one
+  point of each other under the MLP. Rotation alignment did what it was designed to do but did not help.
+\item \lead{Viewpoint matters, and no feature set fixes it.} Accuracy is lowest (0.63 to 0.69) when the exercising
+  arm is on the far side of the body from the camera, where MediaPipe's confidence in that arm drops to
+  about 0.5. Biomechanical features are no more robust here than raw coordinates.
+\item \lead{The CNN is modestly better} than the MLP on three of four feature sets, by 2 to 3 points.
+\end{itemize}
+
+\section{What is not working}
+
+\begin{itemize}
+\item \lead{Overfitting.} Training loss keeps falling while validation loss rises in every condition. Nothing has
+  been tuned and there is no augmentation yet.
+\item \lead{Too little statistical power to rank feature sets.} Accuracy varies by 5 to 8 points from one held-out
+  participant to the next, which is larger than every difference in the table. Only the CNN versus MLP
+  comparison on raw and biomechanical features is consistent across all four participants.
+\item \lead{My hypothesis is not supported so far.} I expected joint angles to transfer better across people and
+  views than coordinates. At this stage they do not.
+\item \lead{The advanced model is a rough draft.} The 1D CNN is only a first step past the baseline. I have
+  drafted a bidirectional GRU with attention as the main advanced model. An untuned, single-seed run gives
+  0.72 to 0.73, no better than the CNN, and it is not in the table. The CNN's poor result on aligned
+  coordinates is also unexplained.
+\end{itemize}
+
+\section{Next steps}
+
+\begin{enumerate}
+\item Attack the person gap directly: stronger regularization, augmentation (random rotation, scaling, time
+   warping), and features measured relative to each repetition's own starting pose.
+\item Run the viewpoint experiment properly by training on some viewing angles and testing on others.
+\item Develop the bidirectional GRU with attention: tune it, run it on every feature set with several seeds,
+   give it the visibility scores, and look at where its attention falls.
+\item Move to evaluation that rotates the held-out participant, so the final numbers do not depend on one person.
+\end{enumerate}
+
+\end{document}

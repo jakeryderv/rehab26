@@ -1,0 +1,38 @@
+% Shared setup for all capstone reports: APA 7 student paper, one font, one bibliography.
+% Each report starts with \input{tex/preamble} and then sets \title and \duedate.
+\documentclass[stu,12pt,floatsintext,biblatex,longtable]{apa7}
+
+\usepackage{fontspec}
+\setmainfont{TeX Gyre Termes}          % Times New Roman equivalent that ships with TeX Live
+\usepackage[american]{babel}
+\usepackage{csquotes}
+\usepackage{setspace}
+\usepackage{enumitem}
+\usepackage{xurl}
+\hypersetup{hidelinks}
+
+\addbibresource{tex/references.bib}
+\graphicspath{{docs/figures/}}
+
+% Author block, the same on every report
+\author{Jake Van Slyke}
+\authorsaffiliations{University of Oklahoma Polytechnic Institute}
+\course{AAI 5303: Deep Learning I}
+\professor{}
+\shorttitle{}                           % student papers carry a page number only, no running head
+\makeatletter
+\patchcmd{\maketitle}{\@professor \\}{}{}{\ClassWarningNoLine{rehab26}{could not drop the empty instructor line}}
+\makeatother
+
+% Tables: single-spaced and slightly smaller, allowed to break across pages
+\AtBeginEnvironment{longtable}{\singlespacing\small\renewcommand{\arraystretch}{1.3}}
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\captionsetup[longtable]{justification=raggedright,singlelinecheck=off}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+% Lists: keep APA double spacing, no extra gaps
+\setlist{nosep,leftmargin=0.5in}
+
+% Lead-in phrase at the start of a paragraph or list item
+\newcommand{\lead}[1]{\textbf{#1}}
